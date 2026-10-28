@@ -1181,6 +1181,11 @@ footer{padding:36px 20px 48px}
         pendingData = new FormData(formStep);
         pendingData.set('package', packageName);
         pendingData.set('total', price);
+        // The Apps Script sheet receiver (same /exec as HPS-oct-11) reads
+        // the field named 'price' — 'total' alone left the sheet's price
+        // column blank. Send both so the sheet and the thank-you page
+        // (which reads 'total') both get the number.
+        pendingData.set('price', price);
 
         document.getElementById('pc_name').textContent     = pendingData.get('name')     || '';
         document.getElementById('pc_phone').textContent    = pendingData.get('phone')    || '';
