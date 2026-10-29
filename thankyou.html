@@ -344,6 +344,15 @@ h2{margin:28px 0 12px;}
     <h1>धन्यवाद!</h1>
     <p class="lede">तपाईंको अर्डर हामीकहाँ पुगिसक्यो। हामी छिट्टै फोन गर्छौं।</p>
   </div>
+  <!-- Order summary, filled from the ?order_id=&value=&package= params
+       sent by index.html on a successful order. Hidden on a direct visit
+       (no params), so the page looks exactly as before in that case. -->
+  <div class="card" id="orderSummary" style="display:none;">
+    <h3>तपाईंको अर्डर / Your Order</h3>
+    <p id="orderIdRow"><b>अर्डर ID / Order ID:</b> <span id="orderId"></span></p>
+    <p id="orderPackageRow"><b>प्याकेज / Package:</b> <span id="orderPackage"></span></p>
+    <p id="orderValueRow"><b>जम्मा / Total (COD):</b> Rs <span id="orderValue"></span></p>
+  </div>
   <ol class="steps2">
     <li><b>हामी फोन गर्छौं</b> र अर्डर पक्का गर्छौं। कृपया फोन नजिकै राख्नुहोस्।</li>
     <li><b>सामान घरमै पुग्छ।</b> नेपालभर डेलिभरी निःशुल्क।</li>
@@ -353,5 +362,44 @@ h2{margin:28px 0 12px;}
   <div class="note" style="margin-top:22px">रगत बग्ने, पीप आउने, ज्वरो आउने वा दुखाइ बढ्ने भए स्प्रे होइन, डाक्टरलाई भेट्नुहोस्।</div>
   <p class="small-disc">यो उत्पादनले कुनै रोग निदान, उपचार वा निको पार्ने दाबी गर्दैन।</p>
 </div>
+<script>
+/* Connect index.html -> thankyou.html: index redirects here with
+   ?order_id=ORD-...&value=2900&package=X2%20%E2%80%93%2060ml
+   Show that order (textContent only, so URL params can't inject HTML)
+   and fire one Facebook Purchase event with the same order_id, so the
+   browser Pixel event can be deduplicated against the server-side
+   Conversions API event for this order. No params = no card, no Purchase. */
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var orderId = (params.get('order_id') || '').trim();
+  var valueRaw = params.get('value') || params.get('price') || params.get('total') || '';
+  var value = parseFloat(valueRaw);
+  var hasValue = isFinite(value) && value > 0;
+  var pkg = (params.get('package') || params.get('pack') || '').trim();
+  if (!orderId && !hasValue && !pkg) return;
+
+  var card = document.getElementById('orderSummary');
+  if (card) card.style.display = 'block';
+
+  function setRow(rowId, elId, text) {
+    var row = document.getElementById(rowId);
+    var el = document.getElementById(elId);
+    if (!row || !el) return;
+    if (text) { el.textContent = text; }
+    else { row.style.display = 'none'; }
+  }
+  setRow('orderIdRow', 'orderId', orderId);
+  setRow('orderPackageRow', 'orderPackage', pkg);
+  setRow('orderValueRow', 'orderValue', hasValue ? new Intl.NumberFormat('ne-NP').format(value) : '');
+
+  if (hasValue && typeof fbq === 'function') {
+    try {
+      var purchaseParams = { value: value, currency: 'NPR', content_name: 'Herbal Piles Spray' };
+      if (orderId) { fbq('track', 'Purchase', purchaseParams, { eventID: orderId }); }
+      else { fbq('track', 'Purchase', purchaseParams); }
+    } catch (e) { /* Pixel failure must never break the thank-you page */ }
+  }
+})();
+</script>
 </body>
 </html>
