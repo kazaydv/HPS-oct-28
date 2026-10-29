@@ -1205,8 +1205,11 @@ footer{padding:36px 20px 48px}
     });
 
     // ── Confirm → POST to Apps Script ────────────────────────────────────────
+    let posting = false;
     document.getElementById('popupConfirmBtn').addEventListener('click', async function() {
-        if (!pendingData) return;
+        if (!pendingData || posting) return;
+        posting = true;
+        this.disabled = true;
 
         closePopup();
         document.body.style.overflow = '';
@@ -1239,25 +1242,38 @@ footer{padding:36px 20px 48px}
         let success = false;
         let errMsg  = 'अर्डर पठाउन सकिएन। कृपया फेरि प्रयास गर्नुहोस्।';
 
+        // NOTE — why no-cors, and why no json check: the /exec endpoint
+        // redirects (script.google.com -> script.googleusercontent.com) and
+        // does not return a readable CORS JSON response, so the old code's
+        // `await res.json()` / `json.status === 'success'` check always
+        // failed and sent the user back to the form — even when the sheet
+        // row had actually been written. The same endpoint's HPS-oct-11
+        // and SWAS pages use no-cors for exactly this reason: with no-cors
+        // the response is opaque (it can't be read), so a resolved fetch
+        // is treated as "sent" and the user goes to thankyou.html. The
+        // trade-off is the browser can no longer verify the sheet write;
+        // check the sheet if an order is ever in doubt.
         try {
-            const res = await fetch(APPS_SCRIPT_URL, {
+            const ctrl = ('AbortController' in window) ? new AbortController() : null;
+            const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+            await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
+                mode: 'no-cors',
+                keepalive: true,
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: params.toString(),
+                signal: ctrl ? ctrl.signal : undefined,
             });
-            if (!res.ok) {
-                errMsg = `Server error (${res.status}). Please try again.`;
-            } else {
-                const json = await res.json();
-                if (json.status === 'success') success = true;
-                else errMsg = json.message || errMsg;
-            }
+            if (timer) clearTimeout(timer);
+            success = true;
         } catch (err) {
             console.error('Fetch error:', err);
             errMsg = 'नेटवर्क त्रुटि। कृपया इन्टरनेट जाँच गर्नुहोस्।';
         }
 
         if (!success) {
+            posting = false;
+            this.disabled = false;
             loadOverlay.classList.remove('active');
             // Reset loader
             spinnerRing.style.display  = 'block';
