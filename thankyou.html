@@ -9,7 +9,37 @@
 <script>document.documentElement.classList.add('js')</script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@500;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var orderId = (params.get('order_id') || '').trim();
+  var value = parseFloat(params.get('value') || params.get('price') || params.get('total') || '');
+  var hasValue = isFinite(value) && value > 0;
+  var pkg = (params.get('package') || params.get('pack') || '').trim();
+  if (!orderId && !hasValue && !pkg) return;
 
+  // Order summary card
+  var card = document.getElementById('orderSummary');
+  if (card) card.style.display = 'block';
+  function setRow(rowId, elId, text) {
+    var row = document.getElementById(rowId), el = document.getElementById(elId);
+    if (!row || !el) return;
+    if (text) el.textContent = text; else row.style.display = 'none';
+  }
+  setRow('orderIdRow', 'orderId', orderId);
+  setRow('orderPackageRow', 'orderPackage', pkg);
+  setRow('orderValueRow', 'orderValue', hasValue ? new Intl.NumberFormat('ne-NP').format(value) : '');
+
+  // PURCHASE event
+  if (hasValue && typeof fbq === 'function') {
+    try {
+      var p = { value: value, currency: 'NPR', content_name: 'Herbal Piles Spray', content_category: pkg };
+      if (orderId) fbq('track', 'Purchase', p, { eventID: orderId });
+      else fbq('track', 'Purchase', p);
+    } catch (e) {}
+  }
+})();
+</script>
   <style>
 :root{
   --paper:#FBF9F5; --ink:#2B2318; --ink-soft:#5F5744;
