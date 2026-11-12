@@ -1398,6 +1398,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&polOverlay.classLis
     if (node.nodeType === Node.TEXT_NODE) {
       node.textContent = convertText(node.textContent);
     } else if (node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('no-convert')) {
+      // A .preeti-text nested inside another one is converted here, so mark
+      // it done; converting Unicode a second time scrambles the ि matra.
+      node.classList.remove('preeti-text');
       node.childNodes.forEach(walk);
     }
   }
@@ -1409,6 +1412,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&polOverlay.classLis
 
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.preeti-text').forEach(function (el) {
+      if (!el.classList.contains('preeti-text')) return; // already done via its parent
       walk(el);              // converts text nodes only — <strong>/<em>/<br> stay intact
       el.classList.remove('preeti-text'); // run once, don't reprocess already-fixed text
     });
